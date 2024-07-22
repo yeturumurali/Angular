@@ -1,0 +1,86 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using OfficeOpenXml;
+using System.IO;
+
+public class Program
+{
+    public class HouseHoldData
+    {
+        public string HouseHoldName { get; set; }
+        public DateTime InceptionDate { get; set; }
+        public string Account { get; set; }
+    }
+
+    public class Result
+    {
+        public string HouseHoldName { get; set; }
+        public int Count { get; set; }
+    }
+
+    public static void Main()
+    {
+        string filePath = "path_to_your_excel_file.xlsx"; // Change this to the path of your Excel file
+
+        List<HouseHoldData> data = ReadExcel(filePath);
+
+        var result = data
+            .GroupBy(d => d.HouseHoldName)
+            .Select(g =>
+            {
+                var householdName = g.Key;
+                var dates = g.Select(d => d.InceptionDate).OrderBy(d => d).ToList();
+                int count = 0;
+                for (int i = 0; i < dates.Count; i++)
+                {
+                    for (int j = i + 1; j < dates.Count; j++)
+                    {
+                        if ((dates[j] - dates[i]).TotalDays <= 5)
+                        {
+                            count++;
+                        }
+                        else
+                        {
+                            break;
+                        }
+                    }
+                }
+                return new Result { HouseHoldName = householdName, Count = count };
+            })
+            .ToList();
+
+        foreach (var item in result)
+        {
+            Console.WriteLine($"HouseHoldName: {item.HouseHoldName}, Count: {item.Count}");
+        }
+    }
+
+    public static List<HouseHoldData> ReadExcel(string filePath)
+    {
+        var data = new List<HouseHoldData>();
+
+        FileInfo fileInfo = new FileInfo(filePath);
+        using (ExcelPackage package = new ExcelPackage(fileInfo))
+        {
+            ExcelWorksheet worksheet = package.Workbook.Worksheets[0]; // Assuming data is in the first worksheet
+            int rowCount = worksheet.Dimension.Rows;
+
+            for (int row = 2; row <= rowCount; row++) // Assuming first row is header
+            {
+                var houseHoldName = worksheet.Cells[row, 1].Text;
+                var inceptionDate = DateTime.Parse(worksheet.Cells[row, 2].Text);
+                var account = worksheet.Cells[row, 3].Text;
+
+                data.Add(new HouseHoldData
+                {
+                    HouseHoldName = houseHoldName,
+                    InceptionDate = inceptionDate,
+                    Account = account
+                });
+            }
+        }
+
+        return data;
+    }
+}
