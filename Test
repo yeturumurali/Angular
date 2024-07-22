@@ -1,0 +1,62 @@
+Sub CountHouseHoldData()
+    Dim ws As Worksheet
+    Dim lastRow As Long
+    Dim i As Long, j As Long
+    Dim houseHoldDict As Object
+    Dim houseHoldName As String
+    Dim inceptionDate As Date
+    Dim outputWs As Worksheet
+    
+    ' Set the worksheet
+    Set ws = ThisWorkbook.Sheets("Sheet1") ' Change "Sheet1" to the name of your sheet
+    
+    ' Find the last row with data
+    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
+    
+    ' Create a dictionary to hold household data
+    Set houseHoldDict = CreateObject("Scripting.Dictionary")
+    
+    ' Read data from the worksheet
+    For i = 2 To lastRow ' Assuming the first row is the header
+        houseHoldName = ws.Cells(i, 1).Value
+        inceptionDate = ws.Cells(i, 2).Value
+        
+        If Not houseHoldDict.exists(houseHoldName) Then
+            houseHoldDict.Add houseHoldName, New Collection
+        End If
+        
+        houseHoldDict(houseHoldName).Add inceptionDate
+    Next i
+    
+    ' Create a new worksheet for the results
+    Set outputWs = ThisWorkbook.Sheets.Add(After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count))
+    outputWs.Name = "HouseHoldCount"
+    
+    ' Write headers
+    outputWs.Cells(1, 1).Value = "HouseHoldName"
+    outputWs.Cells(1, 2).Value = "Count"
+    
+    ' Process the data and write the results
+    i = 2
+    For Each key In houseHoldDict.keys
+        Dim dates As Collection
+        Set dates = houseHoldDict(key)
+        
+        Dim count As Long
+        count = 0
+        
+        For j = 1 To dates.Count
+            For k = j + 1 To dates.Count
+                If Abs(dates(j) - dates(k)) <= 5 Then
+                    count = count + 1
+                End If
+            Next k
+        Next j
+        
+        outputWs.Cells(i, 1).Value = key
+        outputWs.Cells(i, 2).Value = count
+        i = i + 1
+    Next key
+    
+    MsgBox "Count calculation completed!"
+End Sub
