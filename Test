@@ -60,3 +60,33 @@ Sub CountHouseHoldData()
     
     MsgBox "Count calculation completed!"
 End Sub
+
+
+
+
+
+using System;
+using System.Text.RegularExpressions;
+
+public class Program
+{
+    public static void Main()
+    {
+        string format = "Hello, {Name!0}, and the Lots is {Lots!1}";
+        object[] parameters = new object[] { "Alice", 5 };
+        
+        string result = ReplacePlaceholders(format, parameters);
+        
+        Console.WriteLine(result);
+    }
+
+    public static string ReplacePlaceholders(string format, object[] parameters)
+    {
+        string pattern = @"\{(\w+)!(\d+)\}";
+        return Regex.Replace(format, pattern, match =>
+        {
+            int index = int.Parse(match.Groups[2].Value);
+            return parameters[index]?.ToString() ?? match.Value;
+        });
+    }
+}
