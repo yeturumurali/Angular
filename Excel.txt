@@ -1,86 +1,58 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using OfficeOpenXml;
 using System.IO;
+using System.Runtime.Caching;
 
-public class Program
+class FileCache
 {
-    public class HouseHoldData
+    private MemoryCache _cache;
+    private string _filePath;
+    private FileSystemWatcher _fileWatcher;
+
+    public FileCache(string filePath)
     {
-        public string HouseHoldName { get; set; }
-        public DateTime InceptionDate { get; set; }
-        public string Account { get; set; }
-    }
+        _filePath = filePath;
+        _cache = new MemoryCache("FileDataCache");
 
-    public class Result
-    {
-        public string HouseHoldName { get; set; }
-        public int Count { get; set; }
-    }
-
-    public static void Main()
-    {
-        string filePath = "path_to_your_excel_file.xlsx"; // Change this to the path of your Excel file
-
-        List<HouseHoldData> data = ReadExcel(filePath);
-
-        var result = data
-            .GroupBy(d => d.HouseHoldName)
-            .Select(g =>
-            {
-                var householdName = g.Key;
-                var dates = g.Select(d => d.InceptionDate).OrderBy(d => d).ToList();
-                int count = 0;
-                for (int i = 0; i < dates.Count; i++)
-                {
-                    for (int j = i + 1; j < dates.Count; j++)
-                    {
-                        if ((dates[j] - dates[i]).TotalDays <= 5)
-                        {
-                            count++;
-                        }
-                        else
-                        {
-                            break;
-                        }
-                    }
-                }
-                return new Result { HouseHoldName = householdName, Count = count };
-            })
-            .ToList();
-
-        foreach (var item in result)
+        _fileWatcher = new FileSystemWatcher(Path.GetDirectoryName(filePath))
         {
-            Console.WriteLine($"HouseHoldName: {item.HouseHoldName}, Count: {item.Count}");
-        }
+            Filter = Path.GetFileName(filePath),
+            NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName
+        };
+
+        _fileWatcher.Changed += OnFileChanged;
+        _fileWatcher.Deleted += OnFileChanged;
+        _fileWatcher.Renamed += OnFileChanged;
+        _fileWatcher.EnableRaisingEvents = true;
     }
 
-    public static List<HouseHoldData> ReadExcel(string filePath)
+    private void OnFileChanged(object sender, FileSystemEventArgs e)
     {
-        var data = new List<HouseHoldData>();
+        // Invalidate the cache if the file is changed, deleted, or renamed
+        _cache.Remove(_filePath);
+    }
 
-        FileInfo fileInfo = new FileInfo(filePath);
-        using (ExcelPackage package = new ExcelPackage(fileInfo))
+    public string GetFileData()
+    {
+        if (_cache.Contains(_filePath))
         {
-            ExcelWorksheet worksheet = package.Workbook.Worksheets[0]; // Assuming data is in the first worksheet
-            int rowCount = worksheet.Dimension.Rows;
-
-            for (int row = 2; row <= rowCount; row++) // Assuming first row is header
-            {
-                var houseHoldName = worksheet.Cells[row, 1].Text;
-                var inceptionDate = DateTime.Parse(worksheet.Cells[row, 2].Text);
-                var account = worksheet.Cells[row, 3].Text;
-
-                data.Add(new HouseHoldData
-                {
-                    HouseHoldName = houseHoldName,
-                    InceptionDate = inceptionDate,
-                    Account = account
-                });
-            }
+            return _cache.Get(_filePath) as string;
         }
 
+        // If the cache does not contain the data, read from the file and cache it
+        string data = File.ReadAllText(_filePath);
+        _cache.Set(_filePath, data, new CacheItemPolicy());
         return data;
+    }
+}
+
+class Program
+{
+    static void Main()
+    {
+        var fileCache = new FileCache("path/to/your/file.txt");
+
+        // Example of usage
+        string fileData = fileCache.GetFileData();
+        Console.WriteLine(fileData);
     }
 }
