@@ -1,46 +1,64 @@
+public interface IFileCache
+{
+    string GetFileData(string filePath); // Retrieve file data, potentially from cache
+    void ResetCache(string filePath); // Reset the cache for a specific file
+}
+
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Runtime.Caching;
 
-class FileCache
+public class FileCache : IFileCache
 {
-    private MemoryCache _cache;
-    private string _filePath;
-    private FileSystemWatcher _fileWatcher;
+    private readonly MemoryCache _cache;
+    private readonly Dictionary<string, FileSystemWatcher> _watchers; // Keep track of file watchers for each file
 
-    public FileCache(string filePath)
+    public FileCache()
     {
-        _filePath = filePath;
         _cache = new MemoryCache("FileDataCache");
+        _watchers = new Dictionary<string, FileSystemWatcher>();
+    }
 
-        _fileWatcher = new FileSystemWatcher(Path.GetDirectoryName(filePath))
+    private void AddFileWatcher(string filePath)
+    {
+        // If a watcher for this file already exists, do nothing
+        if (_watchers.ContainsKey(filePath))
+            return;
+
+        var fileWatcher = new FileSystemWatcher(Path.GetDirectoryName(filePath))
         {
             Filter = Path.GetFileName(filePath),
             NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName
         };
 
-        _fileWatcher.Changed += OnFileChanged;
-        _fileWatcher.Deleted += OnFileChanged;
-        _fileWatcher.Renamed += OnFileChanged;
-        _fileWatcher.EnableRaisingEvents = true;
+        fileWatcher.Changed += (sender, e) => ResetCache(filePath);
+        fileWatcher.Deleted += (sender, e) => ResetCache(filePath);
+        fileWatcher.Renamed += (sender, e) => ResetCache(filePath);
+        fileWatcher.EnableRaisingEvents = true;
+
+        _watchers[filePath] = fileWatcher; // Store the watcher for future reference
     }
 
-    private void OnFileChanged(object sender, FileSystemEventArgs e)
+    public void ResetCache(string filePath)
     {
-        // Invalidate the cache if the file is changed, deleted, or renamed
-        _cache.Remove(_filePath);
+        _cache.Remove(filePath);
+        Console.WriteLine($"Cache reset for: {filePath}");
     }
 
-    public string GetFileData()
+    public string GetFileData(string filePath)
     {
-        if (_cache.Contains(_filePath))
+        if (_cache.Contains(filePath))
         {
-            return _cache.Get(_filePath) as string;
+            return _cache.Get(filePath) as string;
         }
 
-        // If the cache does not contain the data, read from the file and cache it
-        string data = File.ReadAllText(_filePath);
-        _cache.Set(_filePath, data, new CacheItemPolicy());
+        // Add a new watcher if this is the first time we are accessing this file
+        AddFileWatcher(filePath);
+
+        // If the data is not cached, read from the file and cache it
+        string data = File.ReadAllText(filePath);
+        _cache.Set(filePath, data, new CacheItemPolicy());
         return data;
     }
 }
@@ -49,10 +67,20 @@ class Program
 {
     static void Main()
     {
-        var fileCache = new FileCache("path/to/your/file.txt");
+        IFileCache fileCache = new FileCache();
 
-        // Example of usage
-        string fileData = fileCache.GetFileData();
-        Console.WriteLine(fileData);
+        // Retrieve file data for different files
+        string file1Data = fileCache.GetFileData("path/to/your/file1.txt");
+        Console.WriteLine(file1Data);
+
+        string file2Data = fileCache.GetFileData("path/to/your/file2.txt");
+        Console.WriteLine(file2Data);
+
+        // Manually reset cache for a specific file
+        fileCache.ResetCache("path/to/your/file1.txt");
+
+        // Retrieve file data again (this will reload from the file after cache reset)
+        file1Data = fileCache.GetFileData("path/to/your/file1.txt");
+        Console.WriteLine(file1Data);
     }
 }
