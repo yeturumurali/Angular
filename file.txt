@@ -1,28 +1,18 @@
-Led comprehensive Transition Analysis efforts, enabling Financial Advisors to better understand potential tax scenarios when transitioning current account holdings to alternative portfolios.
-
-Developed a utility app from scratch, optimizing it to allow developers to integrate new APIs or components with minimal code, enhancing efficiency and scalability.
-
-Designed and created architectural diagrams for all developed applications, ensuring clear and maintainable technical documentation.
-
-Successfully delivered the Transition Analysis project on time, despite resource constraints, while taking full ownership of the process.
-
-Took proactive steps to guide the team, offering continuous support and direction to ensure deliverables were met, fostering a collaborative environment.
-
-Actively participated in team events and ceremonies, contributing to requirement discussions and feedback sessions, significantly improving my visibility and engagement compared to previous years.
-
-Contributed to the UMA Assist project, developing a feature that enables users to generate proposals and corresponding reports with a single click.
-
-Built Splunk dashboards that provide instant access to critical data, allowing teams to monitor information efficiently.
-
-Developed an interstitial test page capable of configuring any API, displaying data dynamically, and generating grid views for easier interpretation of response data in tabular format.
-
-Worked on IPT Production Essentials, completing all tasks with precision and on time.
-Managed and completed a substantial list of hygiene items, ensuring system improvements were delivered within deadlines.
-
-Played a key role in talent acquisition by conducting interviews to onboard the right candidates.
-
-Created Jive pages to document private cloud initiatives, simplifying integration for new teams and ensuring smoother transitions.
-
-Actively participated in "Give Back to Society" events, supporting community-driven initiatives.
-
-Provided assistance to other teams, helping them overcome challenges in their day-to-day code development tasks.
+Do the Right Thing:
+Delivered Transition Analysis Project Seamlessly: Took full responsibility and delivered the Transition Analysis on time despite resource constraints, ensuring high standards and quality.
+Guidance and Support to the Team: Proactively guided the team to meet deliverables and was always available for help and mentorship, ensuring tasks were completed efficiently and correctly.
+Assisted Other Teams: Helped other teams resolve challenges in their day-to-day code development, contributing to broader organizational success.
+Completed Hygiene Items in Time: Managed and delivered a large number of hygiene items within deadlines, improving system reliability and performance.
+Put Clients First:
+Transition Analysis for Financial Advisors: Led the Transition Analysis project, which provided Financial Advisors with crucial insights into potential tax scenarios, helping them serve clients better during portfolio transitions.
+Built Efficient Utility App: Created a utility app from scratch that allowed for quicker, more efficient development of APIs and components, ultimately improving client delivery times.
+UMA Assist Project: Developed features in the UMA Assist project to allow users to generate proposals and reports with a single click, significantly enhancing the user experience.
+Lead with Exceptional Ideas:
+Developed the Utility App from Scratch: Innovatively built a utility app that minimized the code required for new API or component integration, streamlining the development process.
+Created Splunk Dashboards: Developed Splunk dashboards to provide instant access to important data, allowing for better decision-making and monitoring.
+Architectural Design and Diagrams: Produced clear architectural diagrams and designs for developed apps, ensuring a strong technical foundation and ease of future development.
+Interstitial Test Page: Designed an interstitial test page capable of dynamically configuring APIs and displaying data in tabular format, demonstrating forward-thinking in system testing and monitoring.
+Commit to Diversity and Inclusion:
+Participated in Interviews for Talent Acquisition: Conducted interviews to bring in diverse talent, contributing to building a team with varied perspectives and skill sets.
+Active Participant in Team Events: Engaged in team events and ceremonies, providing input, feedback, and fostering an inclusive environment where ideas and discussions were encouraged.
+Give Back to Society Initiatives: Participated in "Give Back to Society" events, supporting community-driven efforts and demonstrating a commitment to societal betterment.
