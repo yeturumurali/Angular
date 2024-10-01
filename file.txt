@@ -1,2 +1,28 @@
-This is our initial commit to the angular prolect. 
-Another commit through git extentios
+Led comprehensive Transition Analysis efforts, enabling Financial Advisors to better understand potential tax scenarios when transitioning current account holdings to alternative portfolios.
+
+Developed a utility app from scratch, optimizing it to allow developers to integrate new APIs or components with minimal code, enhancing efficiency and scalability.
+
+Designed and created architectural diagrams for all developed applications, ensuring clear and maintainable technical documentation.
+
+Successfully delivered the Transition Analysis project on time, despite resource constraints, while taking full ownership of the process.
+
+Took proactive steps to guide the team, offering continuous support and direction to ensure deliverables were met, fostering a collaborative environment.
+
+Actively participated in team events and ceremonies, contributing to requirement discussions and feedback sessions, significantly improving my visibility and engagement compared to previous years.
+
+Contributed to the UMA Assist project, developing a feature that enables users to generate proposals and corresponding reports with a single click.
+
+Built Splunk dashboards that provide instant access to critical data, allowing teams to monitor information efficiently.
+
+Developed an interstitial test page capable of configuring any API, displaying data dynamically, and generating grid views for easier interpretation of response data in tabular format.
+
+Worked on IPT Production Essentials, completing all tasks with precision and on time.
+Managed and completed a substantial list of hygiene items, ensuring system improvements were delivered within deadlines.
+
+Played a key role in talent acquisition by conducting interviews to onboard the right candidates.
+
+Created Jive pages to document private cloud initiatives, simplifying integration for new teams and ensuring smoother transitions.
+
+Actively participated in "Give Back to Society" events, supporting community-driven initiatives.
+
+Provided assistance to other teams, helping them overcome challenges in their day-to-day code development tasks.
