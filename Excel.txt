@@ -79,8 +79,45 @@ class Program
         // Manually reset cache for a specific file
         fileCache.ResetCache("path/to/your/file1.txt");
 
-        // Retrieve file data again (this will reload from the file after cache reset)
-        file1Data = fileCache.GetFileData("path/to/your/file1.txt");
-        Console.WriteLine(file1Data);
-    }
-}
+
+from flask import Flask, jsonify, request
+import requests
+
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return "Welcome to the Flask App!"
+
+@app.route('/get-repo-content', methods=['GET'])
+def get_repo_content():
+    # Get query parameters from the request
+    owner = request.args.get('owner')
+    repo = request.args.get('repo')
+    path = request.args.get('path')
+    
+    # Check if all parameters are provided
+    if not all([owner, repo, path]):
+        return jsonify({'error': 'Please provide owner, repo, and path parameters'}), 400
+    
+    # Construct the GitHub API URL
+    url = f'https://api.github.com/repos/{owner}/{repo}/contents/{path}'
+    
+    try:
+        response = requests.get(url)
+        response.raise_for_status()  # Raises an HTTPError for bad responses (4xx and 5xx)
+        data = response.json()
+        
+        # Return the content as a JSON response
+        return jsonify({
+            'name': data.get('name'),
+            'path': data.get('path'),
+            'content': data.get('content'),  # Base64-encoded content
+            'download_url': data.get('download_url')
+        })
+    
+    except requests.exceptions.RequestException as e:
+        return jsonify({'error': str(e)}), 500
+
+if __name__ == '__main__':
+    app.run(debug=True)
