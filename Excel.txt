@@ -1,123 +1,143 @@
-public interface IFileCache
-{
-    string GetFileData(string filePath); // Retrieve file data, potentially from cache
-    void ResetCache(string filePath); // Reset the cache for a specific file
-}
-
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Runtime.Caching;
-
-public class FileCache : IFileCache
-{
-    private readonly MemoryCache _cache;
-    private readonly Dictionary<string, FileSystemWatcher> _watchers; // Keep track of file watchers for each file
-
-    public FileCache()
-    {
-        _cache = new MemoryCache("FileDataCache");
-        _watchers = new Dictionary<string, FileSystemWatcher>();
-    }
-
-    private void AddFileWatcher(string filePath)
-    {
-        // If a watcher for this file already exists, do nothing
-        if (_watchers.ContainsKey(filePath))
-            return;
-
-        var fileWatcher = new FileSystemWatcher(Path.GetDirectoryName(filePath))
-        {
-            Filter = Path.GetFileName(filePath),
-            NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName
-        };
-
-        fileWatcher.Changed += (sender, e) => ResetCache(filePath);
-        fileWatcher.Deleted += (sender, e) => ResetCache(filePath);
-        fileWatcher.Renamed += (sender, e) => ResetCache(filePath);
-        fileWatcher.EnableRaisingEvents = true;
-
-        _watchers[filePath] = fileWatcher; // Store the watcher for future reference
-    }
-
-    public void ResetCache(string filePath)
-    {
-        _cache.Remove(filePath);
-        Console.WriteLine($"Cache reset for: {filePath}");
-    }
-
-    public string GetFileData(string filePath)
-    {
-        if (_cache.Contains(filePath))
-        {
-            return _cache.Get(filePath) as string;
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Executive Summary</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f9;
         }
-
-        // Add a new watcher if this is the first time we are accessing this file
-        AddFileWatcher(filePath);
-
-        // If the data is not cached, read from the file and cache it
-        string data = File.ReadAllText(filePath);
-        _cache.Set(filePath, data, new CacheItemPolicy());
-        return data;
-    }
-}
-
-class Program
-{
-    static void Main()
-    {
-        IFileCache fileCache = new FileCache();
-
-        // Retrieve file data for different files
-        string file1Data = fileCache.GetFileData("path/to/your/file1.txt");
-        Console.WriteLine(file1Data);
-
-        string file2Data = fileCache.GetFileData("path/to/your/file2.txt");
-        Console.WriteLine(file2Data);
-
-        // Manually reset cache for a specific file
-        fileCache.ResetCache("path/to/your/file1.txt");
-
-
-from flask import Flask, jsonify, request
-import requests
-
-app = Flask(__name__)
-
-@app.route('/')
-def home():
-    return "Welcome to the Flask App!"
-
-@app.route('/get-repo-content', methods=['GET'])
-def get_repo_content():
-    # Get query parameters from the request
-    owner = request.args.get('owner')
-    repo = request.args.get('repo')
-    path = request.args.get('path')
-    
-    # Check if all parameters are provided
-    if not all([owner, repo, path]):
-        return jsonify({'error': 'Please provide owner, repo, and path parameters'}), 400
-    
-    # Construct the GitHub API URL
-    url = f'https://api.github.com/repos/{owner}/{repo}/contents/{path}'
-    
-    try:
-        response = requests.get(url)
-        response.raise_for_status()  # Raises an HTTPError for bad responses (4xx and 5xx)
-        data = response.json()
+        .container {
+            width: 80%;
+            margin: 0 auto;
+            padding: 20px;
+            border: 1px solid #ddd;
+            background-color: #fff;
+        }
+        .header {
+            text-align: left;
+        }
+        .header h2 {
+            font-size: 24px;
+            color: #1b3a57;
+        }
+        .summary-text {
+            font-size: 14px;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+        .section {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+        .section-title {
+            font-weight: bold;
+        }
+        .section-content {
+            text-align: right;
+        }
+        .table-container {
+            margin-top: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 8px;
+            text-align: center;
+            border: 1px solid #ddd;
+        }
+        th {
+            background-color: #f0f0f0;
+        }
+        .chart-container {
+            width: 80%;
+            margin: 20px auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>Morgan Stanley</h2>
+            <h3>Executive Summary for [Client Name]</h3>
+        </div>
+        <div class="summary-text">
+            <p>This report provides a comprehensive overview of the proposed and current asset allocation for [CLIENT NAME], along with the [annualized returns] and [projected income] for the Proposed Portfolio under a newly proposed fee structure and derived Primary Benchmark. The investment profile indicates a focus on income generation with an immediate time horizon. The proposed asset allocation suggests a shift towards a more balanced portfolio with increased exposure to equities and cash.</p>
+        </div>
         
-        # Return the content as a JSON response
-        return jsonify({
-            'name': data.get('name'),
-            'path': data.get('path'),
-            'content': data.get('content'),  # Base64-encoded content
-            'download_url': data.get('download_url')
-        })
-    
-    except requests.exceptions.RequestException as e:
-        return jsonify({'error': str(e)}), 500
+        <div class="section">
+            <div class="section-title">Simulated Market Scenario (10 Year Treasury)</div>
+            <div class="section-content">
+                <p>Short Term Gain/Loss: <strong>($7,690.31)</strong></p>
+                <p>Long Term Gain/Loss: <strong>$1.46</strong></p>
+            </div>
+        </div>
 
-if __name__ == '__main__':
-    app.run(debug=True)
+        <div class="chart-container">
+            <canvas id="marketChart"></canvas>
+        </div>
+
+        <div class="table-container">
+            <table>
+                <tr>
+                    <th>Top 5 Holdings</th>
+                    <th>% of Portfolio</th>
+                </tr>
+                <tr>
+                    <td>AB AMER INCOME I2</td>
+                    <td>60.00</td>
+                </tr>
+                <tr>
+                    <td>COCA COLA CO</td>
+                    <td>30.00</td>
+                </tr>
+                <tr>
+                    <td>PEPSICO INC NC</td>
+                    <td>5.00</td>
+                </tr>
+                <tr>
+                    <td>CASH</td>
+                    <td>5.00</td>
+                </tr>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const ctx = document.getElementById('marketChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['10 Year Treasury', 'Benchmark', 'Portfolio (Gross)'],
+                datasets: [{
+                    label: 'Market Scenario',
+                    data: [2.1, 3.48, 2.79],
+                    backgroundColor: ['#4bc0c0', '#c9cbcf', '#4bc0c0'],
+                    borderColor: '#c9cbcf',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
