@@ -1,58 +1,134 @@
-// app.component.ts
-import { Component } from '@angular/core';
-import * as Highcharts from 'highcharts';
+using System;
+using System.Text.RegularExpressions;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
-@Component({
-  selector: 'app-root',
-  templateUrl: './app.component.html',
-  styleUrls: ['./app.component.css']
-})
-export class AppComponent {
-  Highcharts: typeof Highcharts = Highcharts;
-  chartOptions: Highcharts.Options = {
-    chart: {
-      type: 'column'
-    },
-    title: {
-      text: 'Simulated Market Scenario (10 Year Treasury)'
-    },
-    xAxis: {
-      categories: ['10 Year Treasury']
-    },
-    yAxis: {
-      min: 0,
-      title: {
-        text: null
-      }
-    },
-    legend: {
-      enabled: true
-    },
-    plotOptions: {
-      series: {
-        stacking: 'normal'
-      }
-    },
-    series: [
-      {
-        name: 'Benchmark',
-        data: [3.48],
-        type: 'column',
-        color: '#d3d3d3'
-      },
-      {
-        name: 'Portfolio (Gross)',
-        data: [2.1],
-        type: 'column',
-        color: '#7cb5ec'
-      }
-    ]
-  };
+public class PiiMasker
+{
+    // Compiled regex for detecting PII fields
+    private static readonly Regex PiiFieldRegex = new Regex(
+        @"\b(account|acct|phone|email|city|state|pin|ssn|spouse|key|addr|cc|name)\b",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled
+    );
+
+    // Additional patterns for masking PII data like email, phone number, etc.
+    private static readonly Regex EmailRegex = new Regex(@"^[^@]+@[^@]+\.[^@]+$", RegexOptions.Compiled);
+    private static readonly Regex PhoneRegex = new Regex(@"^\d{3}-\d{3}-\d{4}$", RegexOptions.Compiled);
+    private static readonly Regex CreditCardRegex = new Regex(@"^\d{4}-\d{4}-\d{4}-\d{4}$", RegexOptions.Compiled);
+    private static readonly Regex SsnRegex = new Regex(@"^\d{3}-\d{2}-\d{4}$", RegexOptions.Compiled);
+    
+    public static string MaskPii(object jsonInput)
+    {
+        JToken jsonToken;
+
+        // Parse input JSON
+        if (jsonInput is string jsonString)
+        {
+            jsonToken = JToken.Parse(jsonString);
+        }
+        else if (jsonInput is JToken token)
+        {
+            jsonToken = token;
+        }
+        else
+        {
+            throw new ArgumentException("Input must be a JSON string or a JToken object.");
+        }
+
+        // Mask PII fields
+        MaskFields(jsonToken);
+
+        // Return masked JSON
+        return jsonToken.ToString(Formatting.None); // Use None for compact JSON
+    }
+
+    private static void MaskFields(JToken token)
+    {
+        if (token.Type == JTokenType.Object)
+        {
+            var obj = (JObject)token;
+
+            foreach (var property in obj.Properties())
+            {
+                // Recursively process nested objects or arrays
+                if (property.Value.Type == JTokenType.Object || property.Value.Type == JTokenType.Array)
+                {
+                    MaskFields(property.Value);
+                    continue;
+                }
+
+                // Match field names using regex
+                if (PiiFieldRegex.IsMatch(property.Name))
+                {
+                    property.Value = MaskValue(property.Value.ToString());
+                }
+                else if (EmailRegex.IsMatch(property.Value.ToString()))
+                {
+                    // If it matches an email, mask it
+                    property.Value = MaskEmail(property.Value.ToString());
+                }
+                else if (PhoneRegex.IsMatch(property.Value.ToString()))
+                {
+                    // If it matches a phone number, mask it
+                    property.Value = MaskPhoneNumber(property.Value.ToString());
+                }
+                else if (CreditCardRegex.IsMatch(property.Value.ToString()))
+                {
+                    // If it matches a credit card, mask it
+                    property.Value = MaskCreditCard(property.Value.ToString());
+                }
+                else if (SsnRegex.IsMatch(property.Value.ToString()))
+                {
+                    // If it matches a SSN, mask it
+                    property.Value = MaskSsn(property.Value.ToString());
+                }
+            }
+        }
+        else if (token.Type == JTokenType.Array)
+        {
+            foreach (var item in token)
+            {
+                MaskFields(item);
+            }
+        }
+    }
+
+    private static string MaskValue(string value)
+    {
+        int length = value.Length;
+
+        if (length == 0) return value;
+
+        if (length <= 3)
+        {
+            return new string('*', Math.Max(0, length - 1)) + value[^1];
+        }
+
+        return new string('*', length - 3) + value.Substring(length - 3);
+    }
+
+    private static string MaskEmail(string email)
+    {
+        var atIndex = email.IndexOf('@');
+        if (atIndex > 0)
+        {
+            return email.Substring(0, 1) + new string('*', atIndex - 1) + email.Substring(atIndex);
+        }
+        return email;
+    }
+
+    private static string MaskPhoneNumber(string phoneNumber)
+    {
+        return new string('*', phoneNumber.Length - 4) + phoneNumber.Substring(phoneNumber.Length - 4);
+    }
+
+    private static string MaskCreditCard(string creditCard)
+    {
+        return new string('*', creditCard.Length - 4) + creditCard.Substring(creditCard.Length - 4);
+    }
+
+    private static string MaskSsn(string ssn)
+    {
+        return new string('*', ssn.Length - 4) + ssn.Substring(ssn.Length - 4);
+    }
 }
-
-<!-- app.component.html -->
-<highcharts-chart 
-  [Highcharts]="Highcharts" 
-  [options]="chartOptions" 
-  style="width: 100%; height: 400px; display: block;">
-</highcharts-chart>
