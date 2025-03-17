@@ -1,24 +1,39 @@
-Generate a PlantUML diagram for the method `methodName` in the following format:
-- The diagram should show the main method, its logic, and any methods it calls.
-- Include any subsequent methods called by the initial method and their interactions.
-- Represent loops, conditions, and decision points in the logic clearly.
-- Use `alt`, `loop`, and `opt` constructs in PlantUML where applicable for conditions, loops, and optional flows.
+@startuml
 
-For example:
-- If the method contains a conditional `if-else`, represent it using `alt`.
-- If the method calls another method multiple times in a loop, represent it using `loop`.
-- Represent external service calls or API calls as external components.
+autonumber
 
-Input Code Example:
-```java
-public void exampleMethod() {
-    if (condition1) {
-        methodA();
-    } else {
-        methodB();
-    }
-    for (int i = 0; i < 5; i++) {
-        methodC();
-    }
-    externalService.callService();
-}
+title Proposal Workflow
+
+actor WealthDesk
+participant "Utilities App" as UA
+participant "CRG API"
+participant "Clients API"
+participant "Accounts API"
+participant "PCA"
+participant "MS API"
+participant "Save to DB API"
+participant "Get All Proposal API"
+participant "Get Proposals API"
+participant "V3 API"
+
+== New Proposal ==
+WealthDesk -> UA: Call Utilities App
+UA -> "CRG API": Fetch Data
+UA -> "Clients API": Fetch Data
+UA -> "Accounts API": Fetch Data
+UA -> PCA: Send Data for Processing
+PCA -> UA: Return Portfolio Data
+UA -> "MS API": Process Portfolio Data
+UA -> "Save to DB API": Save Data
+UA -> "Get All Proposal API": Fetch All Proposals
+UA -> WealthDesk: Show Proposals
+
+== Reload Proposal ==
+WealthDesk -> UA: Click on Proposal
+UA -> "Get Proposals API": Fetch Proposal with Proposal ID
+"Get Proposals API" -> "Accounts API": Get Associated Accounts/Models
+"Get Proposals API" -> "V3 API": Fetch Investment Details
+"Get Proposals API" -> UA: Return Data
+UA -> PCA: Send Portfolio Data and Key Accounts
+
+@enduml
