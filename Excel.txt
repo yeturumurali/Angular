@@ -1,143 +1,251 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Executive Summary</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-            background-color: #f4f4f9;
-        }
-        .container {
-            width: 80%;
-            margin: 0 auto;
-            padding: 20px;
-            border: 1px solid #ddd;
-            background-color: #fff;
-        }
-        .header {
-            text-align: left;
-        }
-        .header h2 {
-            font-size: 24px;
-            color: #1b3a57;
-        }
-        .summary-text {
-            font-size: 14px;
-            margin-bottom: 20px;
-            line-height: 1.6;
-        }
-        .section {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 20px;
-        }
-        .section-title {
-            font-weight: bold;
-        }
-        .section-content {
-            text-align: right;
-        }
-        .table-container {
-            margin-top: 20px;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        th, td {
-            padding: 8px;
-            text-align: center;
-            border: 1px solid #ddd;
-        }
-        th {
-            background-color: #f0f0f0;
-        }
-        .chart-container {
-            width: 80%;
-            margin: 20px auto;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h2>Morgan Stanley</h2>
-            <h3>Executive Summary for [Client Name]</h3>
-        </div>
-        <div class="summary-text">
-            <p>This report provides a comprehensive overview of the proposed and current asset allocation for [CLIENT NAME], along with the [annualized returns] and [projected income] for the Proposed Portfolio under a newly proposed fee structure and derived Primary Benchmark. The investment profile indicates a focus on income generation with an immediate time horizon. The proposed asset allocation suggests a shift towards a more balanced portfolio with increased exposure to equities and cash.</p>
-        </div>
-        
-        <div class="section">
-            <div class="section-title">Simulated Market Scenario (10 Year Treasury)</div>
-            <div class="section-content">
-                <p>Short Term Gain/Loss: <strong>($7,690.31)</strong></p>
-                <p>Long Term Gain/Loss: <strong>$1.46</strong></p>
-            </div>
-        </div>
+Account to portolio:
+------------------------------------------------------
+using System;
+using System.Collections.Generic;
 
-        <div class="chart-container">
-            <canvas id="marketChart"></canvas>
-        </div>
+public class Investment
+{
+    public string Symbol { get; set; }
+    public double Percentage { get; set; }
+    public double MarketValue { get; set; }
+    public string AccountId { get; set; } // Added to track which account the investment belongs to
+}
 
-        <div class="table-container">
-            <table>
-                <tr>
-                    <th>Top 5 Holdings</th>
-                    <th>% of Portfolio</th>
-                </tr>
-                <tr>
-                    <td>AB AMER INCOME I2</td>
-                    <td>60.00</td>
-                </tr>
-                <tr>
-                    <td>COCA COLA CO</td>
-                    <td>30.00</td>
-                </tr>
-                <tr>
-                    <td>PEPSICO INC NC</td>
-                    <td>5.00</td>
-                </tr>
-                <tr>
-                    <td>CASH</td>
-                    <td>5.00</td>
-                </tr>
-            </table>
-        </div>
-    </div>
+public class Account
+{
+    public string AccountId { get; set; }
+    public double TotalMarketValue { get; set; }
+    public List<Investment> Investments { get; set; } = new List<Investment>();
+}
 
-    <script>
-        const ctx = document.getElementById('marketChart').getContext('2d');
-        new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: ['10 Year Treasury', 'Benchmark', 'Portfolio (Gross)'],
-                datasets: [{
-                    label: 'Market Scenario',
-                    data: [2.1, 3.48, 2.79],
-                    backgroundColor: ['#4bc0c0', '#c9cbcf', '#4bc0c0'],
-                    borderColor: '#c9cbcf',
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                responsive: true,
-                scales: {
-                    y: {
-                        beginAtZero: true
-                    }
-                },
-                plugins: {
-                    legend: {
-                        display: false
-                    }
+public class Portfolio
+{
+    public double TotalMarketValue { get; set; }
+    public List<Investment> Investments { get; set; } = new List<Investment>();
+}
+
+public class PortfolioManager
+{
+    public Portfolio ConvertToPortfolio(List<Account> accounts)
+    {
+        Portfolio portfolio = new Portfolio();
+        foreach (var account in accounts)
+        {
+            portfolio.TotalMarketValue += account.TotalMarketValue;
+            foreach (var investment in account.Investments)
+            {
+                var portfolioInvestment = new Investment
+                {
+                    Symbol = investment.Symbol,
+                    MarketValue = investment.MarketValue,
+                    AccountId = account.AccountId // Track the account ID
+                };
+                portfolio.Investments.Add(portfolioInvestment);
+            }
+        }
+
+        // Recalculate percentages based on the portfolio's total market value
+        foreach (var investment in portfolio.Investments)
+        {
+            investment.Percentage = (investment.MarketValue / portfolio.TotalMarketValue) * 100;
+        }
+
+        return portfolio;
+    }
+
+    public List<Account> ConvertToAccounts(Portfolio portfolio, List<Account> accounts)
+    {
+        foreach (var account in accounts)
+        {
+            foreach (var investment in account.Investments)
+            {
+                var portfolioInvestment = portfolio.Investments.Find(i => i.Symbol == investment.Symbol && i.AccountId == account.AccountId);
+                if (portfolioInvestment != null)
+                {
+                    investment.Percentage = portfolioInvestment.Percentage;
                 }
             }
-        });
-    </script>
-</body>
-</html>
+        }
+
+        return accounts;
+    }
+}
+
+public class Program
+{
+    public static void Main()
+    {
+        var accounts = new List<Account>
+        {
+            new Account
+            {
+                AccountId = "A1",
+                TotalMarketValue = 2000,
+                Investments = new List<Investment>
+                {
+                    new Investment { Symbol = "AAPL", Percentage = 10, MarketValue = 200 },
+                    new Investment { Symbol = "TSLA", Percentage = 20, MarketValue = 400 },
+                    new Investment { Symbol = "IBM", Percentage = 30, MarketValue = 600 },
+                    new Investment { Symbol = "CASH", Percentage = 40, MarketValue = 800 }
+                }
+            },
+            new Account
+            {
+                AccountId = "A2",
+                TotalMarketValue = 3000,
+                Investments = new List<Investment>
+                {
+                    new Investment { Symbol = "JOJ", Percentage = 40, MarketValue = 1200 },
+                    new Investment { Symbol = "AAPL", Percentage = 30, MarketValue = 900 },
+                    new Investment { Symbol = "TSLA", Percentage = 20, MarketValue = 600 },
+                    new Investment { Symbol = "CASH", Percentage = 10, MarketValue = 300 }
+                }
+            }
+        };
+
+        var portfolioManager = new PortfolioManager();
+        var portfolio = portfolioManager.ConvertToPortfolio(accounts);
+
+        Console.WriteLine("Portfolio Level:");
+        foreach (var investment in portfolio.Investments)
+        {
+            Console.WriteLine($"{investment.Symbol} (Account {investment.AccountId}): {investment.Percentage}%, Market Value: {investment.MarketValue}");
+        }
+
+        var updatedAccounts = portfolioManager.ConvertToAccounts(portfolio, accounts);
+
+        Console.WriteLine("\nAccount Level:");
+        foreach (var account in updatedAccounts)
+        {
+            Console.WriteLine($"Account {account.AccountId}:");
+            foreach (var investment in account.Investments)
+            {
+                Console.WriteLine($"{investment.Symbol}: {investment.Percentage}%, Market Value: {investment.MarketValue}");
+            }
+        }
+
+        Console.ReadLine();
+    }
+}
+
+
+Portfolio to Account:
+------------------------------------------------------
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+public class Investment
+{
+    public string Symbol { get; set; }
+    public double Percentage { get; set; }
+    public double MarketValue { get; set; }
+    public string AccountId { get; set; } // Added to track which account the investment belongs to
+}
+
+public class Account
+{
+    public string AccountId { get; set; }
+    public double TotalMarketValue { get; set; }
+    public List<Investment> Investments { get; set; } = new List<Investment>();
+}
+
+public class Portfolio
+{
+    public double TotalMarketValue { get; set; }
+    public List<Investment> Investments { get; set; } = new List<Investment>();
+}
+
+public class PortfolioManager
+{
+    public List<Account> ConvertToAccounts(Portfolio portfolio)
+    {
+        // Group portfolio investments by AccountId
+        var accountGroups = portfolio.Investments.GroupBy(i => i.AccountId);
+
+        var accounts = new List<Account>();
+
+        foreach (var group in accountGroups)
+        {
+            var account = new Account
+            {
+                AccountId = group.Key,
+                TotalMarketValue = group.Sum(i => i.MarketValue), // Calculate total market value for the account
+                Investments = group.Select(i => new Investment
+                {
+                    Symbol = i.Symbol,
+                    MarketValue = i.MarketValue,
+                    Percentage = (i.MarketValue / group.Sum(inv => inv.MarketValue)) * 100 // Calculate account-level percentage
+                }).ToList()
+            };
+
+            accounts.Add(account);
+        }
+
+        return accounts;
+    }
+}
+
+public class Program
+{
+    public static void Main()
+    {
+        // Portfolio-level data (as provided)
+        var portfolio = new Portfolio
+        {
+            TotalMarketValue = 5000,
+            Investments = new List<Investment>
+            {
+                new Investment { Symbol = "AAPL", Percentage = 4, MarketValue = 200, AccountId = "A1" },
+                new Investment { Symbol = "TSLA", Percentage = 8, MarketValue = 400, AccountId = "A1" },
+                new Investment { Symbol = "IBM", Percentage = 12, MarketValue = 600, AccountId = "A1" },
+                new Investment { Symbol = "CASH", Percentage = 16, MarketValue = 800, AccountId = "A1" },
+                new Investment { Symbol = "JOJ", Percentage = 24, MarketValue = 1200, AccountId = "A2" },
+                new Investment { Symbol = "AAPL", Percentage = 18, MarketValue = 900, AccountId = "A2" },
+                new Investment { Symbol = "TSLA", Percentage = 12, MarketValue = 600, AccountId = "A2" },
+                new Investment { Symbol = "CASH", Percentage = 6, MarketValue = 300, AccountId = "A2" }
+            }
+        };
+
+        var portfolioManager = new PortfolioManager();
+        var accounts = portfolioManager.ConvertToAccounts(portfolio);
+
+        Console.WriteLine("Account Level Data (Converted from Portfolio Level):");
+        foreach (var account in accounts)
+        {
+            Console.WriteLine($"Account {account.AccountId} (Total Market Value: {account.TotalMarketValue}):");
+            foreach (var investment in account.Investments)
+            {
+                Console.WriteLine($"{investment.Symbol}: {investment.Percentage}%, Market Value: {investment.MarketValue}");
+            }
+            Console.WriteLine();
+        }
+
+        Console.ReadLine();
+    }
+}
+
+---------------------------------
+Test  data:
+
+Portfolio Level:
+AAPL (Account A1): 4%, Market Value: 200
+TSLA (Account A1): 8%, Market Value: 400
+IBM (Account A1): 12%, Market Value: 600
+CASH (Account A1): 16%, Market Value: 800
+JOJ (Account A2): 24%, Market Value: 1200
+AAPL (Account A2): 18%, Market Value: 900
+TSLA (Account A2): 12%, Market Value: 600
+CASH (Account A2): 6%, Market Value: 300
+
+Account Level:
+Account A1:
+AAPL: 4%, Market Value: 200
+TSLA: 8%, Market Value: 400
+IBM: 12%, Market Value: 600
+CASH: 16%, Market Value: 800
+Account A2:
+JOJ: 24%, Market Value: 1200
+AAPL: 18%, Market Value: 900
+TSLA: 12%, Market Value: 600
+CASH: 6%, Market Value: 300
