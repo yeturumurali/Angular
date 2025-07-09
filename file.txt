@@ -1,39 +1,239 @@
-@startuml
+using Newtonsoft.Json;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 
-autonumber
 
-title Proposal Workflow
+public class FlatRow
+{
+    public AssetsOa Asset { get; set; }
+    public L2AssetDetail L2 { get; set; }
+    public L3AssetDetail L3 { get; set; }
+    public HoldingAsset Holding { get; set; }
+    public string RowType { get; set; }
+    public int RowSpan { get; set; } = 1;
 
-actor WealthDesk
-participant "Utilities App" as UA
-participant "CRG API"
-participant "Clients API"
-participant "Accounts API"
-participant "PCA"
-participant "MS API"
-participant "Save to DB API"
-participant "Get All Proposal API"
-participant "Get Proposals API"
-participant "V3 API"
+    // NEW flags
+    public bool IsFirstAssetInPage { get; set; } = false;
+    public bool IsFirstL2InPage { get; set; } = false;
+    public bool IsFirstL3InPage { get; set; } = false;
+}
 
-== New Proposal ==
-WealthDesk -> UA: Call Utilities App
-UA -> "CRG API": Fetch Data
-UA -> "Clients API": Fetch Data
-UA -> "Accounts API": Fetch Data
-UA -> PCA: Send Data for Processing
-PCA -> UA: Return Portfolio Data
-UA -> "MS API": Process Portfolio Data
-UA -> "Save to DB API": Save Data
-UA -> "Get All Proposal API": Fetch All Proposals
-UA -> WealthDesk: Show Proposals
 
-== Reload Proposal ==
-WealthDesk -> UA: Click on Proposal
-UA -> "Get Proposals API": Fetch Proposal with Proposal ID
-"Get Proposals API" -> "Accounts API": Get Associated Accounts/Models
-"Get Proposals API" -> "V3 API": Fetch Investment Details
-"Get Proposals API" -> UA: Return Data
-UA -> PCA: Send Portfolio Data and Key Accounts
+public class L2AssetDetail
+{
+    public int order { get; set; }
+    public string asset_code { get; set; }
+    public string asset_name { get; set; }
+    public List<L3AssetDetail> L3AssetDetails { get; set; }
+    public bool isToStartHere { get; set; } = false;
+}
 
-@enduml
+public class L3AssetDetail
+{
+    public int order { get; set; }
+    public string asset_code { get; set; }
+    public string asset_name { get; set; }
+    public List<HoldingAsset> holding_asset { get; set; }
+    public bool isToStartHere { get; set; } = false;
+}
+
+public class HoldingAsset
+{
+    public string invst_product { get; set; }
+    public string invst_symbol { get; set; }
+    public bool isToStartHere { get; set; } = false;
+}
+
+
+
+public class AssetsOa
+{
+    public int order { get; set; }
+    public string asset_code { get; set; }
+    public string asset_name { get; set; }
+    public List<L2AssetDetail> L2AssetDetails { get; set; }
+}
+
+public class AssetAlloc
+{
+    public List<AssetsOa> assets_oa { get; set; }
+}
+
+public static class AssetPaginationHelper
+{
+
+    public static List<FlatRow> FlattenAssetData(
+        List<AssetsOa> assets,
+        bool includeL2,
+        bool includeL3,
+        bool includeHolding,
+        int maxCharsPerRow = 40  // new
+    )
+    {
+        var rows = new List<FlatRow>();
+
+        foreach (var asset in assets)
+        {
+            foreach (var l2 in asset.L2AssetDetails ?? new List<L2AssetDetail>())
+            {
+                if (includeL2)
+                    rows.Add(new FlatRow { Asset = asset, L2 = l2, RowType = "L2" });
+
+                foreach (var l3 in l2.L3AssetDetails ?? new List<L3AssetDetail>())
+                {
+                    if (includeL3)
+                        rows.Add(new FlatRow { Asset = asset, L2 = l2, L3 = l3, RowType = "L3" });
+
+                    foreach (var holding in l3.holding_asset ?? new List<HoldingAsset>())
+                    {
+                        if (includeHolding)
+                        {
+                            int length = holding.invst_product?.Length ?? 0;
+                            int span = (int)Math.Ceiling(length / (double)maxCharsPerRow);
+                            span = Math.Max(span, 1); // minimum 1
+
+                            rows.Add(new FlatRow
+                            {
+                                Asset = asset,
+                                L2 = l2,
+                                L3 = l3,
+                                Holding = holding,
+                                RowType = "Holding",
+                                RowSpan = span
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        return rows;
+    }
+
+    public static Dictionary<int, AssetAlloc> PaginateFlatRows(List<FlatRow> flatRows, int rowsPerPage)
+    {
+        var result = new Dictionary<int, AssetAlloc>();
+        int pageNumber = 1;
+        int currentRowCount = 0;
+        var currentPageRows = new List<FlatRow>();
+
+        foreach (var row in flatRows)
+        {
+            if (currentRowCount + row.RowSpan > rowsPerPage)
+            {
+                // Build page
+                result[pageNumber++] = BuildAssetAllocFromFlatRows(currentPageRows);
+                // Start new page
+                currentPageRows = new List<FlatRow>();
+                currentRowCount = 0;
+            }
+
+            currentPageRows.Add(row);
+            currentRowCount += row.RowSpan;
+        }
+
+        if (currentPageRows.Any())
+            result[pageNumber] = BuildAssetAllocFromFlatRows(currentPageRows);
+
+        return result;
+    }
+
+
+
+    public static AssetAlloc BuildAssetAllocFromFlatRows(List<FlatRow> pageRows)
+    {
+        var assetAlloc = new AssetAlloc { assets_oa = new List<AssetsOa>() };
+
+        var firstRow = pageRows.FirstOrDefault();
+
+        foreach (var assetGroup in pageRows.GroupBy(r => r.Asset.order))
+        {
+            var asset = assetGroup.First().Asset;
+            var newAsset = new AssetsOa
+            {
+                order = asset.order,
+                asset_code = asset.asset_code,
+                asset_name = asset.asset_name,
+                L2AssetDetails = new List<L2AssetDetail>()
+            };
+
+            foreach (var l2Group in assetGroup.Where(r => r.L2 != null).GroupBy(r => r.L2.order))
+            {
+                var l2 = l2Group.First().L2;
+                var newL2 = new L2AssetDetail
+                {
+                    order = l2.order,
+                    asset_code = l2.asset_code,
+                    asset_name = l2.asset_name,
+                    L3AssetDetails = new List<L3AssetDetail>()
+                };
+
+                if (firstRow != null && firstRow.RowType == "L2" && firstRow.L2.order == l2.order)
+                    newL2.isToStartHere = true;
+
+                foreach (var l3Group in l2Group.Where(r => r.L3 != null).GroupBy(r => r.L3.order))
+                {
+                    var l3 = l3Group.First().L3;
+                    var newL3 = new L3AssetDetail
+                    {
+                        order = l3.order,
+                        asset_code = l3.asset_code,
+                        asset_name = l3.asset_name,
+                        holding_asset = new List<HoldingAsset>()
+                    };
+
+                    if (firstRow != null && firstRow.RowType == "L3" && firstRow.L3.order == l3.order)
+                        newL3.isToStartHere = true;
+
+                    foreach (var row in l3Group.Where(r => r.Holding != null))
+                    {
+                        var holding = row.Holding;
+                        var newHolding = new HoldingAsset
+                        {
+                            invst_product = holding.invst_product,
+                            invst_symbol = holding.invst_symbol
+                        };
+
+                        if (firstRow != null && firstRow.RowType == "Holding" &&
+                            firstRow.Holding.invst_product == holding.invst_product)
+                            newHolding.isToStartHere = true;
+
+                        newL3.holding_asset.Add(newHolding);
+                    }
+
+                    newL2.L3AssetDetails.Add(newL3);
+                }
+
+                newAsset.L2AssetDetails.Add(newL2);
+            }
+
+            assetAlloc.assets_oa.Add(newAsset);
+        }
+
+        return assetAlloc;
+    }
+
+
+
+
+}
+
+
+
+
+public class Program
+{
+    public static void Main()
+    {
+        List<AssetsOa> myAssets = "";
+        var flatRows = AssetPaginationHelper.FlattenAssetData(myAssets, true, true, true);
+        var pages = AssetPaginationHelper.PaginateFlatRows(flatRows, 10);
+
+        // pages[1] → AssetAlloc with 10 logical rows
+
+
+
+        Console.ReadLine();
+    }
+}
