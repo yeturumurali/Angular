@@ -1,92 +1,282 @@
-Sub CountHouseHoldData()
-    Dim ws As Worksheet
-    Dim lastRow As Long
-    Dim i As Long, j As Long
-    Dim houseHoldDict As Object
-    Dim houseHoldName As String
-    Dim inceptionDate As Date
-    Dim outputWs As Worksheet
-    
-    ' Set the worksheet
-    Set ws = ThisWorkbook.Sheets("Sheet1") ' Change "Sheet1" to the name of your sheet
-    
-    ' Find the last row with data
-    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
-    
-    ' Create a dictionary to hold household data
-    Set houseHoldDict = CreateObject("Scripting.Dictionary")
-    
-    ' Read data from the worksheet
-    For i = 2 To lastRow ' Assuming the first row is the header
-        houseHoldName = ws.Cells(i, 1).Value
-        inceptionDate = ws.Cells(i, 2).Value
-        
-        If Not houseHoldDict.exists(houseHoldName) Then
-            houseHoldDict.Add houseHoldName, New Collection
-        End If
-        
-        houseHoldDict(houseHoldName).Add inceptionDate
-    Next i
-    
-    ' Create a new worksheet for the results
-    Set outputWs = ThisWorkbook.Sheets.Add(After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count))
-    outputWs.Name = "HouseHoldCount"
-    
-    ' Write headers
-    outputWs.Cells(1, 1).Value = "HouseHoldName"
-    outputWs.Cells(1, 2).Value = "Count"
-    
-    ' Process the data and write the results
-    i = 2
-    For Each key In houseHoldDict.keys
-        Dim dates As Collection
-        Set dates = houseHoldDict(key)
-        
-        Dim count As Long
-        count = 0
-        
-        For j = 1 To dates.Count
-            For k = j + 1 To dates.Count
-                If Abs(dates(j) - dates(k)) <= 5 Then
-                    count = count + 1
-                End If
-            Next k
-        Next j
-        
-        outputWs.Cells(i, 1).Value = key
-        outputWs.Cells(i, 2).Value = count
-        i = i + 1
-    Next key
-    
-    MsgBox "Count calculation completed!"
-End Sub
-
-
-
-
-
+using Newtonsoft.Json;
 using System;
-using System.Text.RegularExpressions;
+using System.Collections.Generic;
+using System.Linq;
+
+
+public class FlatRow
+{
+    public AssetsOa Asset { get; set; }
+    public L2AssetDetail L2 { get; set; }
+    public L3AssetDetail L3 { get; set; }
+    public HoldingAsset Holding { get; set; }
+    public string RowType { get; set; }
+    public int RowSpan { get; set; } = 1;
+
+    // NEW flags
+    public bool IsFirstAssetInPage { get; set; } = false;
+    public bool IsFirstL2InPage { get; set; } = false;
+    public bool IsFirstL3InPage { get; set; } = false;
+}
+
+
+public class L2AssetDetail
+{
+    public int order { get; set; }
+    public string asset_code { get; set; }
+    public string asset_name { get; set; }
+    public List<L3AssetDetail> L3AssetDetails { get; set; }
+    public bool isToStartHere { get; set; } = false;
+}
+
+public class L3AssetDetail
+{
+    public int order { get; set; }
+    public string asset_code { get; set; }
+    public string asset_name { get; set; }
+    public List<HoldingAsset> holding_asset { get; set; }
+    public bool isToStartHere { get; set; } = false;
+}
+
+public class HoldingAsset
+{
+    public string invst_product { get; set; }
+    public string invst_symbol { get; set; }
+    public bool isToStartHere { get; set; } = false;
+}
+
+
+
+public class AssetsOa
+{
+    public int order { get; set; }
+    public string asset_code { get; set; }
+    public string asset_name { get; set; }
+    public List<L2AssetDetail> L2AssetDetails { get; set; }
+}
+
+public class AssetAlloc
+{
+    public List<AssetsOa> assets_oa { get; set; }
+}
+
+public static class AssetPaginationHelper
+{
+
+    public static List<FlatRow> FlattenAssetData(
+        List<AssetsOa> assets,
+        bool includeL2,
+        bool includeL3,
+        bool includeHolding,
+        int maxCharsPerRow = 40  // new
+    )
+    {
+        var rows = new List<FlatRow>();
+
+        foreach (var asset in assets)
+        {
+            foreach (var l2 in asset.L2AssetDetails ?? new List<L2AssetDetail>())
+            {
+                if (includeL2)
+                    rows.Add(new FlatRow { Asset = asset, L2 = l2, RowType = "L2" });
+
+                foreach (var l3 in l2.L3AssetDetails ?? new List<L3AssetDetail>())
+                {
+                    if (includeL3)
+                        rows.Add(new FlatRow { Asset = asset, L2 = l2, L3 = l3, RowType = "L3" });
+
+                    foreach (var holding in l3.holding_asset ?? new List<HoldingAsset>())
+                    {
+                        if (includeHolding)
+                        {
+                            int length = holding.invst_product?.Length ?? 0;
+                            int span = (int)Math.Ceiling(length / (double)maxCharsPerRow);
+                            span = Math.Max(span, 1); // minimum 1
+
+                            rows.Add(new FlatRow
+                            {
+                                Asset = asset,
+                                L2 = l2,
+                                L3 = l3,
+                                Holding = holding,
+                                RowType = "Holding",
+                                RowSpan = span
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        return rows;
+    }
+
+    public static Dictionary<int, AssetAlloc> PaginateFlatRows(
+    List<FlatRow> flatRows,
+    int rowsForStartingPage,
+    int rowsPerPage
+)
+    {
+        var result = new Dictionary<int, AssetAlloc>();
+        int pageNumber = 1;
+        int currentRowCount = 0;
+        int currentPageLimit = rowsForStartingPage;  // First page has less space
+        var currentPageRows = new List<FlatRow>();
+
+        foreach (var row in flatRows)
+        {
+            if (currentRowCount + row.RowSpan > currentPageLimit)
+            {
+                // Build page and store
+                var page = BuildAssetAllocFromFlatRows(currentPageRows);
+                result[pageNumber++] = page;
+
+                // Start next page
+                currentPageRows = new List<FlatRow>();
+                currentRowCount = 0;
+                currentPageLimit = rowsPerPage; // After first page, use full page size
+            }
+
+            currentPageRows.Add(row);
+            currentRowCount += row.RowSpan;
+        }
+
+        // Any remaining rows → last page
+        if (currentPageRows.Any())
+        {
+            var page = BuildAssetAllocFromFlatRows(currentPageRows);
+            result[pageNumber] = page;
+        }
+
+        return result;
+    }
+
+
+
+
+    public static AssetAlloc BuildAssetAllocFromFlatRows(List<FlatRow> pageRows)
+    {
+        var assetAlloc = new AssetAlloc { assets_oa = new List<AssetsOa>() };
+
+        var firstRow = pageRows.FirstOrDefault();
+
+        foreach (var assetGroup in pageRows.GroupBy(r => r.Asset.order))
+        {
+            var asset = assetGroup.First().Asset;
+            var newAsset = new AssetsOa
+            {
+                order = asset.order,
+                asset_code = asset.asset_code,
+                asset_name = asset.asset_name,
+                L2AssetDetails = new List<L2AssetDetail>()
+            };
+
+            foreach (var l2Group in assetGroup.Where(r => r.L2 != null).GroupBy(r => r.L2.order))
+            {
+                var l2 = l2Group.First().L2;
+                var newL2 = new L2AssetDetail
+                {
+                    order = l2.order,
+                    asset_code = l2.asset_code,
+                    asset_name = l2.asset_name,
+                    L3AssetDetails = new List<L3AssetDetail>()
+                };
+
+                if (firstRow != null && firstRow.RowType == "L2" && firstRow.L2.order == l2.order)
+                    newL2.isToStartHere = true;
+
+                foreach (var l3Group in l2Group.Where(r => r.L3 != null).GroupBy(r => r.L3.order))
+                {
+                    var l3 = l3Group.First().L3;
+                    var newL3 = new L3AssetDetail
+                    {
+                        order = l3.order,
+                        asset_code = l3.asset_code,
+                        asset_name = l3.asset_name,
+                        holding_asset = new List<HoldingAsset>()
+                    };
+
+                    if (firstRow != null && firstRow.RowType == "L3" && firstRow.L3.order == l3.order)
+                        newL3.isToStartHere = true;
+
+                    foreach (var row in l3Group.Where(r => r.Holding != null))
+                    {
+                        var holding = row.Holding;
+                        var newHolding = new HoldingAsset
+                        {
+                            invst_product = holding.invst_product,
+                            invst_symbol = holding.invst_symbol
+                        };
+
+                        if (firstRow != null && firstRow.RowType == "Holding" &&
+                            firstRow.Holding.invst_product == holding.invst_product)
+                            newHolding.isToStartHere = true;
+
+                        newL3.holding_asset.Add(newHolding);
+                    }
+
+                    newL2.L3AssetDetails.Add(newL3);
+                }
+
+                newAsset.L2AssetDetails.Add(newL2);
+            }
+
+            assetAlloc.assets_oa.Add(newAsset);
+        }
+
+        return assetAlloc;
+    }
+
+
+    public static int GetTotalPages(
+    List<FlatRow> flatRows,
+    int rowsForStartingPage,
+    int rowsPerPage
+)
+    {
+        int totalPages = 0;
+        int currentRowCount = 0;
+        int currentPageLimit = rowsForStartingPage;
+
+        foreach (var row in flatRows)
+        {
+            if (currentRowCount + row.RowSpan > currentPageLimit)
+            {
+                totalPages++;
+                currentRowCount = 0;
+                currentPageLimit = rowsPerPage; // after first page
+            }
+
+            currentRowCount += row.RowSpan;
+        }
+
+        if (currentRowCount > 0)
+            totalPages++;
+
+        return totalPages;
+    }
+
+
+}
+
+
+
 
 public class Program
 {
     public static void Main()
     {
-        string format = "Hello, {Name!0}, and the Lots is {Lots!1}";
-        object[] parameters = new object[] { "Alice", 5 };
-        
-        string result = ReplacePlaceholders(format, parameters);
-        
-        Console.WriteLine(result);
-    }
+        List<AssetsOa> myAssets = "";
 
-    public static string ReplacePlaceholders(string format, object[] parameters)
-    {
-        string pattern = @"\{(\w+)!(\d+)\}";
-        return Regex.Replace(format, pattern, match =>
-        {
-            int index = int.Parse(match.Groups[2].Value);
-            return parameters[index]?.ToString() ?? match.Value;
-        });
+        var flatRows = AssetPaginationHelper.FlattenAssetData(myAssets, true, true, true);
+        var pages = AssetPaginationHelper.PaginateFlatRows(flatRows, 5, 10);
+
+        var totalPages = AssetPaginationHelper.GetTotalPages(flatRows, 5, 10);
+
+        // pages[1] → AssetAlloc with 10 logical rows
+
+
+
+        Console.ReadLine();
     }
 }
